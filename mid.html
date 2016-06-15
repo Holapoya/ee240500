@@ -1,0 +1,461 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Searching area</title>
+
+<!-- 1/3. Include the RGraph libraries -->
+<script src="RGraph/libraries/RGraph.common.core.js" >
+<!--
+
+//-->
+</script>
+<script src="RGraph/libraries/RGraph.common.context.js" >
+<!--
+
+//-->
+</script>
+<script src="RGraph/libraries/RGraph.line.js" >
+<!--
+
+//-->
+</script>
+<!--[if IE 8]><script src="../excanvas/excanvas.compressed.js">
+<!--
+
+//-->
+</script><![endif]-->
+<style>
+   div {
+   width: 819px;
+   height: 460px;
+   border: 1px solid black;
+   }
+</style>
+</head>
+
+<body>
+<!--
+<body background = "pic1.png">
+<canvas id="canvas" width="819" height="460" style="border:1px solid #000000;"></canvas>
+<div id="myDiv"></div>
+   document.getElementById("myDiv").style.backgroundImage = "url('pic.png')";
+   <body background = "pic1.png"> 
+//-->
+<h2 align = "center">DRIVING GAME</h2>
+    
+<div id="canvas-container">
+<canvas id="canvas" width="819" height="460" style="border:1px solid #000000;"></canvas>
+</div>
+
+<body background = "backk.jpg"> 
+<!--
+Debug Informtion:
+<div id="myDivElement" />
+-->
+
+<script type="text/javascript">
+<!--
+
+    var batch=30;
+    var samples=batch;
+    var timecycle=0;
+    var requestCounter = 0;
+    var interval = 0;
+    var nodata = 0;
+    var serverAddressBase = "xdata.";
+    var serverAddress = "xdata.0"; //default file to get from server
+ 
+  
+
+    d1 = [];
+    d2 = [];
+    d3 = [];
+    
+    // Pre-pad the arrays with # of samples null values
+    for (var i=0; i< samples; ++i) {
+        d1.push(null);
+        d2.push(null);
+        d3.push(null);
+    }
+
+    var xmlHttp = createXmlHttpRequestObject();
+
+
+    // creates XMLHttpRequest Instance
+    function createXmlHttpRequestObject(){
+
+      // will store XMLHttpRequest object
+      // at here
+      var xmlHttp;
+
+      // works all exceprt IE6 and older  
+      try
+      {
+      
+	// try to create XMLHttpRequest object
+	xmlHttp = new XMLHttpRequest();    
+      }
+      catch(e)
+      {
+	// assume IE 6 or older
+	try
+	{
+	  xmlHttp = new ActiveXObject("Microsoft.XMLHTTP");
+	}
+	catch(e){ }
+      }
+      
+      // return object or display error
+      if (!xmlHttp)
+	alert("Error creating the XMLHttpRequest Object");
+      else
+	return xmlHttp;
+    }
+
+    function GetJsonData()
+    {
+      //debug
+      //myDiv = document.getElementById("myDivElement"); 
+      //myDiv.innerHTML += "Getting Json Data<br>"; 
+      nodata=0;
+
+      if(xmlHttp)
+      {
+	try
+	{
+	  xmlHttp.open("Get", serverAddress, false);
+	  //xmlHttp.onreadystatechange = handleRequestStateChange; //We use synchronous data transfer, so we don't need this here
+	  xmlHttp.send(null);
+	  try{
+		  handleJsonData();
+	  }
+	  catch(err){
+	     if(err=="no data"){
+	          //alert('Waiting '+serverAddressBase+requestCounter);
+		  //setTimeout(GetJsonData,10); //Try again 10ms later
+		  nodata=1; //record status
+	     }
+	  }
+	}
+	catch(e)
+	{
+	  alert("Can't connect to server\n" + e.toString());
+	}
+      }
+    }
+
+    function handleRequestStateChange()
+    {
+      if (xmlHttp.readyState == 4)
+      {
+	if(xmlHttp.status == 200|| xmlHttp.status == 0)
+	    {
+	      try
+	      {
+		handleJsonData();
+	      }
+	      catch(e)
+	      {
+		alert("Error reading the response: " + e.toString());
+	      }
+	    }
+	    else
+	    {
+	      alert("Problem retrieving data:\n" + xmlHttp.statusText);
+	    }
+      
+      
+      }
+      
+    }
+
+    function handleJsonData()
+    {
+      var result = xmlHttp.responseText;
+      if(result==''){
+        //alert('No data from xmlhttprequest object!');
+	throw "no data";
+      }
+      else{
+	      try{
+		      var jobject = eval("(" + result + ")");
+		      var i=0;
+		      if(jobject.time>timecycle){
+			      timecycle=jobject.time;
+			      if(jobject.xarray.length==0){
+				throw "no data";
+			      }
+			      else{
+				      for (i=0;i<jobject.xarray.length;i++)
+				      {
+					  //debug
+					  //myDiv.innerHTML += jobject.xarray[i][0] + ", " + jobject.xarray[i][1] + "<br>" ;
+					  d1[i]=jobject.xarray[i][0];
+					  d2[i]=jobject.xarray[i][1];
+					  d3[i]=jobject.xarray[i][2];
+					  /*
+					  d1.push(jobject.xarray[i][0]); 
+					  d2.push(jobject.xarray[i][1]); 
+					  d3.push(jobject.xarray[i][2]);
+					  */
+				      }
+			      }
+		      }
+		      else{
+			//Do nothing
+		      }
+	      }
+	      catch(e){
+		//Retry; ignore all json errors
+	      }
+      }
+    }
+
+
+window.onload = function()
+{
+	x = 11;
+        y = 11;
+        speed = 3;
+        angle = 0;
+        mod = 0;
+	anglemod = 0;
+	x_old=0;
+        y_old=0;
+	
+	var x_front1 = 0;
+        var x_front2 = 0;
+	var x_back = 0;
+	var y_front1 = 0;
+        var y_front2 = 0;
+	var y_back = 0;
+
+
+      canvas = document.getElementById("canvas");
+       t = canvas.getContext("2d");
+      car = new Image();
+      car.src="2.jpg";
+
+//    window.addEventListener("keydown", keypress_handler, false);
+//    window.addEventListener("keyup", keyup_handler, false);
+	movectrl();
+        var move = setInterval(function()
+        {
+                draw();
+        }, 30);
+};
+
+function draw()
+{
+        context = canvas.getContext("2d");
+        context.clearRect(0, 0, 819, 460);
+        context.fillStyle = "rgb(255, 255, 255)";
+        context.fillRect(0, 0, 819, 460);
+
+	x_old =x;
+        y_old =y;
+
+	var backgroundImage = new Image(); 
+	backgroundImage.src = 'pic2.png'; 
+	context.drawImage(backgroundImage, 0, 0);
+	var angle_new = angle + anglemod*2; 
+	var x_new = x_old + (speed*mod) * Math.cos(Math.PI/180 * angle);
+        var y_new = y_old + (speed*mod) * Math.sin(Math.PI/180 * angle);
+
+
+    	var moveable; 
+	moveable = canMoveTo(x_new, y_new, angle_new);
+	if (moveable == 1){
+		x = x_new;
+		y = y_new;
+		angle = angle_new;
+	}
+
+
+	    context.moveTo(x_old,y_old);
+           // context.lineTo(x,y);
+            context.lineWidth = 5;
+            context.strokeStyle = '#3271e7';
+            context.lineCap = 'round';
+            context.stroke();
+
+
+	
+        context.save();
+        context.translate(x, y);
+        context.rotate(Math.PI/180 * angle);
+     //  context.drawImage(car, x, y);
+var ratio = 1;
+
+//context.drawImage(car, -(car.width*ratio/2), -(car.height*ratio/2),ratio*car.width,ratio*car.height);
+context.drawImage(car, 0, 0);
+
+        context.restore();
+}
+/*
+function keyup_handler(event)
+{
+        if(event.keyCode == 87 || event.keyCode == 83)
+        {
+                mod = 0;
+        }
+}
+
+*/
+function threeaxis__handler(d1, d2, d3)
+{
+//Prepare new file name to get from
+  //      serverAddress=serverAddressBase+requestCounter;
+        //alert('Debug'+serverAddress);
+        //Save data from json object to the arrays
+        GetJsonData();
+       // console.log(d1, d2, d3);
+        if(d1== 0)
+        {
+                mod = 1;
+                 speed =0;
+        }
+
+	if(d1== 1)
+        {
+                mod = 1;
+		 speed =3;
+        }
+        if(d1 == 2)
+        {
+                mod = -1;
+		speed =3;
+        }
+	var angle_new;
+	if(d2== 0)
+        {
+                anglemod = 0;
+        }
+        if(d2== 1)
+        {
+                anglemod = -1;
+        }
+        if(d2 == 2)
+        {
+                anglemod = 1;
+        }
+}
+
+function movectrl(){
+	GetJsonData();
+	threeaxis__handler(d1[1], d2[1], d3[1]);
+	setTimeout(movectrl,100);
+}
+
+function canMoveTo(destX, destY, destangle) { 
+	var x_front1 = destX + (car.width-1) * Math.cos(Math.PI/180 * destangle); 
+       	var x_front2 = x_front1 - (car.height-1) * Math.sin(Math.PI/180 * destangle); 
+	var x_back = destX - (car.height-1) * Math.sin(Math.PI/180 * destangle); 
+	var y_front1 = destY + (car.width-1) * Math.sin(Math.PI/180 * destangle); 
+        var y_front2 = y_front1 + (car.height-1) * Math.cos(Math.PI/180 * destangle); 
+	var y_back = destY + (car.height-1) * Math.cos(Math.PI/180 * destangle); 
+	side1x = [];
+        side1y = [];
+        side2x = [];
+        side2y = [];
+        side3x = [];
+        side3y = [];
+        side4x = [];
+        side4y = [];
+
+	for(var i=0;i<5;i+=1){            
+            side1x[i] = destX + 0.2 * i * (car.width-1) * Math.cos(Math.PI/180 * destangle); 
+            side1y[i] = destY + 0.2 * i * (car.width-1) * Math.sin(Math.PI/180 * destangle); 
+            side2x[i] = x_front1 - 0.2 * i * (car.height-1) * Math.sin(Math.PI/180 * destangle); 
+            side2y[i] = y_front1 + 0.2 * i * (car.height-1) * Math.cos(Math.PI/180 * destangle); 
+            side3x[i] = x_front2 - 0.2 * i * (car.width-1) * Math.cos(Math.PI/180 * destangle);
+            side3y[i] = y_front2 - 0.2 * i * (car.width-1) * Math.sin(Math.PI/180 * destangle); 
+            side4x[i] = x_back + 0.2 * i * (car.height-1) * Math.sin(Math.PI/180 * destangle); 
+            side4y[i] = y_back - 0.2 * i * (car.height-1) * Math.cos(Math.PI/180 * destangle); 
+     //       console.log("pp",line1y[i],p2y-p4y,i);
+        }
+	var canMove = 1;
+/*
+	if(Math.max(pp1x,pp2x,pp3x,pp4x)>=boundw){
+            move =0;
+        }
+        if(Math.min(pp1x,pp2x,pp3x,pp4x)<0){
+            move =0;
+        }
+        if(Math.max(pp1y,pp2y,pp3y,pp4y)>=boundh){
+            move=0;
+        }
+        if(Math.min(pp1y,pp2y,pp3y,pp4y)<0){
+            move=0;
+        }
+*/
+	var imgData1;
+	var imgData2;
+	var imgData3;
+	var imgData4;
+	var data1;
+	var data2;
+	var data3;
+	var data4;
+
+	for(var i=0;i<5;i+=1){
+            imgData1 = context.getImageData(side1x[i], side1y[i], 1, 1); 
+       	    data1 = imgData1.data;
+	    imgData2 = context.getImageData(side2x[i], side2y[i], 1, 1); 
+       	    data2 = imgData2.data;
+	    imgData3 = context.getImageData(side3x[i], side3y[i], 1, 1); 
+       	    data3 = imgData3.data;
+	    imgData4 = context.getImageData(side4x[i], side4y[i], 1, 1); 
+       	    data4 = imgData4.data;
+            if (data1[0] === 0 && data1[1] === 0 && data1[2] === 0){
+                canMove = 0;
+                break;
+            }
+	   if (data2[0] === 0 && data2[1] === 0 && data2[2] === 0){
+                canMove = 0;
+                break;
+            }
+	   if (data3[0] === 0 && data3[1] === 0 && data3[2] === 0){
+                canMove = 0;
+                break;
+            }
+	   if (data4[0] === 0 && data4[1] === 0 && data4[2] === 0){
+                canMove = 0;
+                break;
+            }
+	}        
+
+ 	return canMove; 
+}
+
+/*		
+var imgData = context.getImageData(destX, destY, car.width, car.height); 
+        var data = imgData.data; 
+        var canMove = 1; // 1 m
+                for (var i = 0; i < 4 * car.width * car.height; i += 4) { 
+                    if (data[i] === 0 && data[i + 1] === 0 && data[i + 2] === 0) { // black 
+                        canMove = 0; // 0 means: the rectangle can't move 
+                        break; 
+                    } 
+      
+                } 
+   //         } 
+ //           else { 
+     //           canMove = 0; 
+   //         }  
+        return canMove; 
+}
+*/
+//-->
+</script>
+
+<style type="text/css">
+                #canvas{
+                border: 2px solid #333;
+                }
+        </style>
+
+
+</body>
+</html>
